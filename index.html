@@ -26,6 +26,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .sidebar a{display:block;padding:6px 10px;border-radius:4px;cursor:pointer;font-size:13px;color:var(--text-muted);border-left:3px solid transparent;margin-bottom:2px;transition:background .3s,color .3s}
 .sidebar a:hover{background:var(--bg-hover);color:var(--text)}
 .sidebar a.active{background:var(--bg-active);color:var(--text);border-left-color:#e53935;font-weight:600}
+.sdate{display:block;font-size:10px;color:var(--text-faint);font-weight:400;margin-top:1px}
 .main{flex:1;padding:24px 32px;max-width:960px}
 .card{display:none}.card:first-child{display:block}
 .vheader{margin-bottom:16px}
@@ -68,24 +69,24 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 <div class="sidebar">
 <input type="text" placeholder="Search videos..." oninput="filterVideos(this.value)">
 <div class="label">VIDEOS</div>
-<a class="active" onclick="showVideo(0)" title="3 Claude Code Hacks I Wish I Knew About Earlier">01  3 Claude Code Hacks I Wish I Knew About ...</a>
-<a onclick="showVideo(1)" title="Anthropic Accidentally Leaked Their Most Powerful AI">02  Anthropic Accidentally Leaked Their Most...</a>
-<a onclick="showVideo(2)" title="Anthropic's New Claude Plugins Do Your ENTIRE Job (Free)">03  Anthropic's New Claude Plugins Do Your E...</a>
-<a onclick="showVideo(3)" title="App UI in 47 seconds with Google Stitch for FREE #AppDesign #ai #google #gemini">04  App UI in 47 seconds with Google Stitch ...</a>
-<a onclick="showVideo(4)" title="Chinese AI models are stealing from Claude? (Full video available) #ai #science #chatgpt">05  Chinese AI models are stealing from Clau...</a>
-<a onclick="showVideo(5)" title="First, download this repo of marketing skills. Create a folder with all your brand assets. Start up">06  First, download this repo of marketing s...</a>
-<a onclick="showVideo(6)" title="Clone $100K Websites in 5 Steps With Claude Code">07  Clone $100K Websites in 5 Steps With Cla...</a>
-<a onclick="showVideo(7)" title="(157) GENIUS IDEA">08  (157) GENIUS IDEA</a>
-<a onclick="showVideo(8)" title="Google Just Made App Design Completely Free (Stitch 2.0)">09  Google Just Made App Design Completely F...</a>
-<a onclick="showVideo(9)" title="How to Automate Your Work with Claude Cowork Scheduled Tasks">10  How to Automate Your Work with Claude Co...</a>
-<a onclick="showVideo(10)" title="&quot;I Don't Have Credibility..&quot;">11  &quot;I Don't Have Credibility..&quot;</a>
-<a onclick="showVideo(11)" title="Import your ChatGPT memory to Claude in under 60 seconds. Settings Capabilities Import Memory.">12  Import your ChatGPT memory to Claude in ...</a>
-<a onclick="showVideo(12)" title="Meta &amp; Google Must Pay $6 Million Because a Kid Couldn't Stop Scrolling">13  Meta &amp; Google Must Pay $6 Million Becaus...</a>
-<a onclick="showVideo(13)" title="Most Vibe Coders Don't Know this! #claude #claudecode #vibecoding">14  Most Vibe Coders Don't Know this! #claud...</a>
-<a onclick="showVideo(14)" title="NEW Claude Browser Use AI Agent: Automate ANYTHING!">15  NEW Claude Browser Use AI Agent: Automat...</a>
-<a onclick="showVideo(15)" title="People who’ve never written code are building million-dollar products.">16  People who’ve never written code are bui...</a>
-<a onclick="showVideo(16)" title="These Are All The Ways I've Failed">17  These Are All The Ways I've Failed</a>
-<a onclick="showVideo(17)" title="Will NVIDIA be the default operating system for robotics? #trendingshorts #robot #tech #ai #nvidia">18  Will NVIDIA be the default operating sys...</a>
+<a class="active" onclick="showVideo(0)" title="3 Claude Code Hacks I Wish I Knew About Earlier">01  3 Claude Code Hacks I Wish I Knew About ...<span class="sdate">Mar 28, 2026 12:36 AM (Dubai)</span></a>
+<a onclick="showVideo(1)" title="Anthropic Accidentally Leaked Their Most Powerful AI">02  Anthropic Accidentally Leaked Their Most...<span class="sdate">Mar 28, 2026 12:36 AM (Dubai)</span></a>
+<a onclick="showVideo(2)" title="Anthropic's New Claude Plugins Do Your ENTIRE Job (Free)">03  Anthropic's New Claude Plugins Do Your E...<span class="sdate">Mar 28, 2026 12:17 AM (Dubai)</span></a>
+<a onclick="showVideo(3)" title="App UI in 47 seconds with Google Stitch for FREE #AppDesign #ai #google #gemini">04  App UI in 47 seconds with Google Stitch ...<span class="sdate">Mar 28, 2026 12:35 AM (Dubai)</span></a>
+<a onclick="showVideo(4)" title="Chinese AI models are stealing from Claude? (Full video available) #ai #science #chatgpt">05  Chinese AI models are stealing from Clau...<span class="sdate">Mar 28, 2026 12:16 AM (Dubai)</span></a>
+<a onclick="showVideo(5)" title="First, download this repo of marketing skills. Create a folder with all your brand assets. Start up">06  First, download this repo of marketing s...<span class="sdate">Mar 28, 2026 12:33 AM (Dubai)</span></a>
+<a onclick="showVideo(6)" title="Clone $100K Websites in 5 Steps With Claude Code">07  Clone $100K Websites in 5 Steps With Cla...<span class="sdate">Mar 28, 2026 12:16 AM (Dubai)</span></a>
+<a onclick="showVideo(7)" title="(157) GENIUS IDEA">08  (157) GENIUS IDEA<span class="sdate">Mar 28, 2026 12:19 AM (Dubai)</span></a>
+<a onclick="showVideo(8)" title="Google Just Made App Design Completely Free (Stitch 2.0)">09  Google Just Made App Design Completely F...<span class="sdate">Mar 28, 2026 12:37 AM (Dubai)</span></a>
+<a onclick="showVideo(9)" title="How to Automate Your Work with Claude Cowork Scheduled Tasks">10  How to Automate Your Work with Claude Co...<span class="sdate">Mar 28, 2026 12:18 AM (Dubai)</span></a>
+<a onclick="showVideo(10)" title="&quot;I Don't Have Credibility..&quot;">11  &quot;I Don't Have Credibility..&quot;<span class="sdate">Mar 28, 2026 12:35 AM (Dubai)</span></a>
+<a onclick="showVideo(11)" title="Import your ChatGPT memory to Claude in under 60 seconds. Settings Capabilities Import Memory.">12  Import your ChatGPT memory to Claude in ...<span class="sdate">Mar 28, 2026 12:34 AM (Dubai)</span></a>
+<a onclick="showVideo(12)" title="Meta &amp; Google Must Pay $6 Million Because a Kid Couldn't Stop Scrolling">13  Meta &amp; Google Must Pay $6 Million Becaus...<span class="sdate">Mar 28, 2026 12:20 AM (Dubai)</span></a>
+<a onclick="showVideo(13)" title="Most Vibe Coders Don't Know this! #claude #claudecode #vibecoding">14  Most Vibe Coders Don't Know this! #claud...<span class="sdate">Mar 28, 2026 12:33 AM (Dubai)</span></a>
+<a onclick="showVideo(14)" title="NEW Claude Browser Use AI Agent: Automate ANYTHING!">15  NEW Claude Browser Use AI Agent: Automat...<span class="sdate">Mar 28, 2026 12:19 AM (Dubai)</span></a>
+<a onclick="showVideo(15)" title="People who’ve never written code are building million-dollar products.">16  People who’ve never written code are bui...<span class="sdate">Mar 28, 2026 12:19 AM (Dubai)</span></a>
+<a onclick="showVideo(16)" title="These Are All The Ways I've Failed">17  These Are All The Ways I've Failed<span class="sdate">Mar 28, 2026 12:18 AM (Dubai)</span></a>
+<a onclick="showVideo(17)" title="Will NVIDIA be the default operating system for robotics? #trendingshorts #robot #tech #ai #nvidia">18  Will NVIDIA be the default operating sys...<span class="sdate">Mar 28, 2026 12:34 AM (Dubai)</span></a>
 </div>
 <div class="main">
 <div class="card" id="v0">
