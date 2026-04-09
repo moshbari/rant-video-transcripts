@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RANT Video Transcripts - Reaction Scripts</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #0f0f0f; color: #e0e0e0; line-height: 1.6; }
+.container { max-width: 900px; margin: 0 auto; padding: 20px; }
+header { text-align: center; padding: 40px 0 30px; border-bottom: 2px solid #2E75B6; margin-bottom: 30px; }
+header h1 { font-size: 2em; color: #fff; margin-bottom: 8px; }
+header .stats { color: #888; font-size: 0.95em; }
+.search-bar { width: 100%; padding: 12px 16px; border: 1px solid #333; border-radius: 8px; background: #1a1a1a; color: #e0e0e0; font-size: 1em; margin-bottom: 20px; }
+.search-bar:focus { outline: none; border-color: #2E75B6; }
+.video-card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px; margin-bottom: 12px; overflow: hidden; transition: border-color 0.2s; }
+.video-card:hover { border-color: #2E75B6; }
+.card-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; cursor: pointer; }
+.card-title-row { display: flex; align-items: center; gap: 16px; flex: 1; }
+.thumb { width: 120px; height: 68px; border-radius: 6px; object-fit: cover; }
+.card-header h3 { color: #fff; font-size: 1.05em; margin-bottom: 4px; }
+.video-link { color: #2E75B6; font-size: 0.85em; text-decoration: none; display: block; margin-bottom: 4px; }
+.video-link:hover { text-decoration: underline; }
+.script-count { font-size: 0.8em; color: #888; }
+.toggle-icon { font-size: 1.2em; color: #666; transition: transform 0.2s; }
+.card-body { padding: 0 20px 20px; }
+.transcript-details { margin-bottom: 16px; }
+.transcript-details summary { cursor: pointer; color: #2E75B6; font-weight: 600; padding: 8px 0; }
+.transcript-details summary:hover { text-decoration: underline; }
+.transcript { background: #0a0a0a; padding: 12px 16px; border-radius: 6px; font-size: 0.9em; color: #bbb; margin-top: 8px; white-space: pre-wrap; }
+/* ===== Reaction Block - Screenplay Layout ===== */
+.reaction-block { background: #111; border-left: 4px solid #2E75B6; padding: 24px 20px; margin-bottom: 20px; border-radius: 8px; }
+.reaction-block h4 { color: #fff; font-size: 1.15em; margin-bottom: 6px; letter-spacing: 0.3px; }
+.thin { border: none; border-top: 1px solid #2a2a2a; margin: 10px 0; }
+
+/* Meta info - recessed, collapsible */
+.meta-group { background: #0a0a0a; border-radius: 6px; padding: 10px 14px; margin-bottom: 18px; border: 1px solid #1e1e1e; }
+.meta-group summary { cursor: pointer; color: #666; font-size: 0.82em; font-weight: 500; letter-spacing: 0.3px; text-transform: uppercase; }
+.meta-group summary:hover { color: #888; }
+.meta { font-size: 0.8em; color: #666; margin: 5px 0; line-height: 1.5; }
+
+/* Section labels - chapter markers */
+.section-label {
+  display: inline-block;
+  font-weight: 700;
+  color: #fff;
+  background: #2E75B6;
+  padding: 4px 14px;
+  border-radius: 4px;
+  font-size: 0.82em;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-top: 24px;
+  margin-bottom: 14px;
+}
+/* First section label doesn't need top margin */
+.reaction-block .section-label:first-of-type,
+.meta-group + .section-label { margin-top: 4px; }
+
+/* Stage directions - muted, italic, clearly secondary */
+.stage-direction {
+  font-style: italic;
+  color: #6a6a6a;
+  font-size: 0.85em;
+  margin-bottom: 6px;
+  padding-left: 12px;
+  border-left: 2px solid #2a2a2a;
+  line-height: 1.5;
+}
+
+/* Spoken dialogue - prominent, teleprompter-like */
+.reaction-block p { margin-bottom: 10px; color: #e8e8e8; font-size: 1.05em; line-height: 1.8; }
+.reaction-block p:last-child { margin-bottom: 0; }
+
+/* Alternate hooks/bridge section */
+.alt-section { margin-top: 22px; padding-top: 18px; border-top: 1px dashed #2a2a2a; }
+.alt-label { color: #888; font-size: 0.82em; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+.hidden { display: none; }
+
+/* ===== Video Number Badge ===== */
+.video-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  height: 44px;
+  background: #2E75B6;
+  color: #fff;
+  font-weight: 800;
+  font-size: 1.2em;
+  border-radius: 8px;
+  flex-shrink: 0;
+  letter-spacing: -0.5px;
+}
+
+/* ===== Done Toggle ===== */
+.done-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1px solid #333;
+  border-radius: 6px;
+  background: transparent;
+  color: #888;
+  font-size: 0.82em;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.done-btn:hover { border-color: #2E75B6; color: #aaa; }
+.done-btn.is-done {
+  background: #1a3a1a;
+  border-color: #2d6b2d;
+  color: #5cb85c;
+}
+.done-btn .check-icon { font-size: 1.1em; }
+.video-card.completed { opacity: 0.6; }
+.video-card.completed .card-header { position: relative; }
+
+/* ===== User Banner ===== */
+.user-banner {
+  background: #1a1a2e;
+  border: 1px solid #2E75B6;
+  border-radius: 8px;
+  padding: 10px 16px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.9em;
+}
+.user-banner .user-name { color: #2E75B6; font-weight: 600; }
+.user-banner .progress-text { color: #888; }
+/* ===== Onboarding Box ===== */
+.onboard-box {
+  background: #1a1a2e;
+  border: 1px solid #2E75B6;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+.onboard-box h2 { color: #fff; font-size: 1.15em; margin-bottom: 6px; }
+.onboard-box p { color: #999; font-size: 0.88em; margin-bottom: 14px; line-height: 1.5; }
+.onboard-row {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  align-items: center;
+  max-width: 420px;
+  margin: 0 auto;
+}
+.onboard-row input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid #333;
+  border-radius: 6px;
+  background: #111;
+  color: #fff;
+  font-size: 1em;
+}
+.onboard-row input:focus { outline: none; border-color: #2E75B6; }
+.onboard-row button {
+  padding: 10px 18px;
+  background: #2E75B6;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.92em;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+.onboard-row button:hover { background: #245f96; }
+.onboard-error { color: #e74c3c; font-size: 0.82em; margin-top: 8px; }
+.onboard-switch { color: #666; font-size: 0.8em; margin-top: 10px; }
+.onboard-switch a { color: #2E75B6; cursor: pointer; text-decoration: underline; }
+
+/* ===== Admin Dashboard ===== */
+.admin-panel {
+  background: #1a1a1a;
+  border: 1px solid #2E75B6;
+  border-radius: 10px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+.admin-panel h2 { color: #fff; font-size: 1.2em; margin-bottom: 16px; }
+.admin-table { width: 100%; border-collapse: collapse; }
+.admin-table th { text-align: left; color: #888; font-size: 0.82em; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px; border-bottom: 1px solid #333; }
+.admin-table td { padding: 10px 12px; border-bottom: 1px solid #1e1e1e; color: #e0e0e0; font-size: 0.9em; }
+.admin-table tr:hover td { background: #111; }
+.admin-link { color: #2E75B6; text-decoration: none; font-size: 0.82em; }
+.admin-link:hover { text-decoration: underline; }
+.admin-loading { color: #888; text-align: center; padding: 20px; }
+
+/* ===== Mobile Responsive ===== */
+@media (max-width: 768px) {
+  .container { padding: 12px; }
+  header { padding: 24px 0 18px; margin-bottom: 20px; }
+  header h1 { font-size: 1.4em; }
+  header .stats { font-size: 0.82em; }
+  .search-bar { padding: 10px 12px; font-size: 0.95em; }
+  .card-title-row { flex-direction: column; gap: 10px; align-items: flex-start; }
+  .thumb { width: 100%; height: auto; max-height: 180px; }
+  .card-header { padding: 12px 14px; }
+  .card-header h3 { font-size: 0.95em; }
+  .video-link { font-size: 0.78em; word-break: break-all; }
+  .card-body { padding: 0 10px 14px; }
+  .reaction-block { padding: 18px 14px; }
+  .reaction-block h4 { font-size: 1.05em; }
+  .reaction-block p { font-size: 1em; line-height: 1.75; }
+  .stage-direction { font-size: 0.82em; padding-left: 10px; margin-bottom: 4px; }
+  .section-label { font-size: 0.78em; padding: 3px 12px; margin-top: 20px; margin-bottom: 12px; }
+  .meta { font-size: 0.75em; }
+  .meta-group { padding: 8px 12px; }
+  .transcript { font-size: 0.82em; padding: 10px 12px; }
+  .video-num { min-width: 36px; height: 36px; font-size: 1em; }
+  .done-btn { padding: 5px 10px; font-size: 0.78em; }
+  .user-banner { flex-direction: column; gap: 4px; text-align: center; padding: 8px 12px; font-size: 0.82em; }
+  .onboard-box { padding: 16px; }
+  .onboard-box h2 { font-size: 1em; }
+  .onboard-row { flex-direction: column; }
+  .onboard-row input, .onboard-row button { width: 100%; }
+  .admin-table { font-size: 0.82em; }
+  .admin-table th, .admin-table td { padding: 6px 8px; }
+}
+
+@media (max-width: 420px) {
+  .container { padding: 8px; }
+  header h1 { font-size: 1.2em; }
+  .card-header { padding: 10px; }
+  .card-header h3 { font-size: 0.9em; }
+  .card-body { padding: 0 6px 12px; }
+  .reaction-block { padding: 16px 12px; }
+  .reaction-block p { font-size: 0.95em; line-height: 1.7; }
+  .stage-direction { font-size: 0.78em; }
+  .meta { font-size: 0.72em; }
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+  <header>
+    <h1>RANT Video Transcripts</h1>
+    <p class="stats">{{TOTAL_VIDEOS}} Videos &bull; {{TOTAL_SCRIPTS}} Reaction Scripts &bull; Last updated: {{LAST_UPDATED}}</p>
+  </header>
+
+  <input type="text" class="search-bar" placeholder="Search videos..." oninput="filterCards(this.value)" id="search">
+
+  <div id="user-status"></div>
+
+  <div id="videos-container">
+{{VIDEO_CARDS}}  </div>
+</div>
+
+<script>
+function toggleCard(header) {
+  const body = header.nextElementSibling;
+  const icon = header.querySelector('.toggle-icon');
+  body.classList.toggle('hidden');
+  icon.textContent = body.classList.contains('hidden') ? '▼' : '▲';
+}
+function filterCards(q) {
+  q = q.toLowerCase();
+  document.querySelectorAll('.video-card').forEach(c => {
+    c.style.display = c.dataset.title.includes(q) ? '' : 'none';
+  });
+}
+
+/* ===== Post-load content transformation ===== */
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.reaction-block').forEach(function(block) {
+
+    // 1. Group meta paragraphs into a collapsible details element
+    var metas = block.querySelectorAll('p.meta');
+    if (metas.length > 0) {
+      var firstMeta = metas[0];
+      var details = document.createElement('details');
+      details.className = 'meta-group';
+      var summary = document.createElement('summary');
+      summary.textContent = 'Script Details';
+      details.appendChild(summary);
+
+      var metaArr = [];
+      for (var i = 0; i < metas.length; i++) {
+        var m = metas[i];
+        var isTop = true;
+        var sibs = Array.from(block.children);
+        var metaIdx = sibs.indexOf(m);
+        for (var j = 0; j < metaIdx; j++) {
+          if (sibs[j].classList && sibs[j].classList.contains('section-label')) {
+            isTop = false;
+            break;
+          }
+        }
+        if (isTop) metaArr.push(m);
+      }
+
+      if (metaArr.length > 0) {
+        metaArr[0].parentNode.insertBefore(details, metaArr[0]);
+        metaArr.forEach(function(m) { details.appendChild(m); });
+      }
+    }
+
+    // 2. Remove <hr class="thin"> elements
+    block.querySelectorAll('hr.thin').forEach(function(hr) { hr.remove(); });
+
+    // 3. Remove "REACTION SCRIPT:" label paragraphs and separator lines (====)
+    block.querySelectorAll('p').forEach(function(p) {
+      var txt = p.textContent.trim();
+      if (txt === 'REACTION SCRIPT:' || /^={3,}$/.test(txt)) {
+        p.remove();
+      }
+    });
+
+    // 4. Classify stage directions and style inline ones
+    block.querySelectorAll('p:not(.meta)').forEach(function(p) {
+      if (p.closest('.meta-group')) return;
+      var text = p.textContent.trim();
+
+      if (/^\[.+\]$/.test(text) && text.length < 200) {
+        p.classList.add('stage-direction');
+        return;
+      }
+
+      if (p.innerHTML.match(/\[[^\]]{3,80}\]/)) {
+        p.innerHTML = p.innerHTML.replace(/\[([^\]]{3,80})\]/g, function(match, inner) {
+          if (['HOOK','REACTION','BRIDGE + CTA','BRIDGE','CTA','ALTERNATE HOOK 1','ALTERNATE HOOK 2','ALTERNATE BRIDGE + CTA'].indexOf(inner) >= 0) return match;
+          return '<span class="stage-direction-inline">' + '[' + inner + ']' + '</span>';
+        });
+      }
+    });
+
+    // 5. Style alternate hooks/bridge sections
+    var allChildren = Array.from(block.children);
+    var foundAlt = false;
+    allChildren.forEach(function(el) {
+      var txt = (el.textContent || '').trim();
+      if (/^ALTERNATE\s+(HOOK|BRIDGE|CTA)/i.test(txt) && el.classList.contains('meta')) {
+        if (!foundAlt) {
+          var divider = document.createElement('div');
+          divider.className = 'alt-section';
+          el.parentNode.insertBefore(divider, el);
+          foundAlt = true;
+        }
+        el.classList.add('alt-label');
+      }
+    });
+  });
+});
+</script>
+
+<style>
+/* Inline stage directions within dialogue */
+.stage-direction-inline {
+  font-style: italic;
+  color: #6a6a6a;
+  font-size: 0.85em;
+}
+</style>
+
+<!-- Supabase JS CDN -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+<script>
+/* ===== Video Numbering + Mark as Done + User Links + Admin ===== */
+(function() {
+  var SUPABASE_URL = 'https://yuqeqricenygpsrdfswx.supabase.co';
+  var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1cWVxcmljZW55Z3BzcmRmc3d4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcwOTY1MjIsImV4cCI6MjA3MjY3MjUyMn0.yK9xBR-wk5wtBVk6_ne2qqlbYN1dIpM9kVdGWPEBLG8';
+  var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  var params = new URLSearchParams(window.location.search);
+  var isAdmin = params.get('admin') === 'mosh';
+
+  var savedUser = null;
+  try { savedUser = localStorage.getItem('rant_username'); } catch(e) {}
+  var userId = (params.get('u') || '').trim().toLowerCase();
+
+  if (!userId && !isAdmin && savedUser) {
+    window.location.replace(window.location.origin + window.location.pathname + '?u=' + encodeURIComponent(savedUser));
+    return;
+  }
+
+  if (userId) {
+    try { localStorage.setItem('rant_username', userId); } catch(e) {}
+  }
+
+  if (isAdmin) {
+    showAdminDashboard();
+    return;
+  }
+
+  var cards = document.querySelectorAll('.video-card');
+  var completedSet = new Set();
+
+  cards.forEach(function(card, i) {
+    var num = i + 1;
+    card.setAttribute('data-video-num', String(num));
+
+    var header = card.querySelector('.card-header');
+    var titleRow = header.querySelector('.card-title-row');
+
+    var badge = document.createElement('div');
+    badge.className = 'video-num';
+    badge.textContent = '#' + num;
+    titleRow.insertBefore(badge, titleRow.firstChild);
+
+    if (userId) {
+      var toggleIcon = header.querySelector('.toggle-icon');
+      var doneBtn = document.createElement('button');
+      doneBtn.className = 'done-btn';
+      doneBtn.setAttribute('data-num', num);
+      doneBtn.innerHTML = '<span class="check-icon">○</span> Done';
+      doneBtn.onclick = function(e) {
+        e.stopPropagation();
+        toggleDone(num, card, doneBtn);
+      };
+      header.insertBefore(doneBtn, toggleIcon);
+    }
+  });
+
+  var statusEl = document.getElementById('user-status');
+  if (userId) {
+    var displayName = userId.charAt(0).toUpperCase() + userId.slice(1);
+    statusEl.innerHTML = '<div class="user-banner">' +
+      '<span>Welcome, <span class="user-name">' + displayName + '</span></span>' +
+      '<span class="progress-text" id="progress-count">Loading progress...</span>' +
+      '</div>' +
+      '<div class="onboard-switch">Not ' + displayName + '? <a id="switch-user-link">Switch user</a></div>';
+    document.getElementById('switch-user-link').onclick = function() {
+      try { localStorage.removeItem('rant_username'); } catch(e) {}
+      window.location.replace(window.location.origin + window.location.pathname);
+    };
+    loadProgress();
+  } else {
+    statusEl.innerHTML =
+      '<div class="onboard-box">' +
+        '<h2>Welcome! Set up your profile to track progress</h2>' +
+        '<p>Choose a one-word username. Your progress will be saved and synced across all your devices.</p>' +
+        '<div class="onboard-row">' +
+          '<input type="text" id="onboard-input" placeholder="e.g. sarah" maxlength="20" autocomplete="off" spellcheck="false">' +
+          '<button id="onboard-btn">Create My Unique Link</button>' +
+        '</div>' +
+        '<div id="onboard-error" class="onboard-error"></div>' +
+      '</div>';
+
+    var input = document.getElementById('onboard-input');
+    var btn = document.getElementById('onboard-btn');
+    var errEl = document.getElementById('onboard-error');
+
+    btn.onclick = function() { createUser(); };
+    input.onkeydown = function(e) { if (e.key === 'Enter') createUser(); };
+
+    function createUser() {
+      var name = input.value.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (!name) { errEl.textContent = 'Please enter a username (letters and numbers only).'; return; }
+      if (name.length < 2) { errEl.textContent = 'Username must be at least 2 characters.'; return; }
+      errEl.textContent = '';
+      try { localStorage.setItem('rant_username', name); } catch(e) {}
+      window.location.replace(window.location.origin + window.location.pathname + '?u=' + encodeURIComponent(name));
+    }
+  }
+
+  function loadProgress() {
+    sb.from('rant_video_progress')
+      .select('video_id')
+      .eq('user_id', userId)
+      .then(function(res) {
+        if (res.error) { console.error('Supabase load error:', res.error); return; }
+        var rows = res.data || [];
+        rows.forEach(function(r) { completedSet.add(r.video_id); });
+        updateUI();
+      });
+  }
+
+  function updateUI() {
+    cards.forEach(function(card) {
+      var num = card.getAttribute('data-video-num');
+      var btn = card.querySelector('.done-btn');
+      if (completedSet.has(num)) {
+        card.classList.add('completed');
+        if (btn) { btn.classList.add('is-done'); btn.innerHTML = '<span class="check-icon">✓</span> Done'; }
+      } else {
+        card.classList.remove('completed');
+        if (btn) { btn.classList.remove('is-done'); btn.innerHTML = '<span class="check-icon">○</span> Done'; }
+      }
+    });
+    var countEl = document.getElementById('progress-count');
+    if (countEl) countEl.textContent = completedSet.size + ' / ' + cards.length + ' completed';
+  }
+
+  function toggleDone(num, card, btn) {
+    btn.disabled = true;
+    var videoId = String(num);
+    if (completedSet.has(videoId)) {
+      sb.from('rant_video_progress').delete().eq('user_id', userId).eq('video_id', videoId)
+        .then(function(res) {
+          btn.disabled = false;
+          if (res.error) { console.error('Delete error:', res.error); return; }
+          completedSet.delete(videoId);
+          updateUI();
+        });
+    } else {
+      sb.from('rant_video_progress').insert({ user_id: userId, video_id: videoId, completed: true })
+        .then(function(res) {
+          btn.disabled = false;
+          if (res.error) { console.error('Insert error:', res.error); return; }
+          completedSet.add(videoId);
+          updateUI();
+        });
+    }
+  }
+
+  function showAdminDashboard() {
+    var totalVideos = document.querySelectorAll('.video-card').length;
+    document.getElementById('videos-container').style.display = 'none';
+    document.getElementById('search').style.display = 'none';
+
+    var statusEl = document.getElementById('user-status');
+    statusEl.innerHTML =
+      '<div class="admin-panel">' +
+        '<h2>Owner Dashboard — All Users</h2>' +
+        '<div id="admin-content" class="admin-loading">Loading user data...</div>' +
+      '</div>';
+
+    sb.from('rant_video_progress').select('user_id, video_id, completed_at')
+      .then(function(res) {
+        var contentEl = document.getElementById('admin-content');
+        if (res.error) { contentEl.textContent = 'Error: ' + res.error.message; return; }
+        var rows = res.data || [];
+        if (rows.length === 0) { contentEl.textContent = 'No users have tracked progress yet.'; return; }
+
+        var users = {};
+        rows.forEach(function(r) {
+          if (!users[r.user_id]) users[r.user_id] = { count: 0, lastActive: null };
+          users[r.user_id].count++;
+          var ts = r.completed_at ? new Date(r.completed_at) : null;
+          if (ts && (!users[r.user_id].lastActive || ts > users[r.user_id].lastActive)) {
+            users[r.user_id].lastActive = ts;
+          }
+        });
+
+        var sorted = Object.keys(users).sort(function(a, b) {
+          var ta = users[a].lastActive || new Date(0);
+          var tb = users[b].lastActive || new Date(0);
+          return tb - ta;
+        });
+
+        var html = '<table class="admin-table">' +
+          '<thead><tr><th>User</th><th>Videos Done</th><th>Progress</th><th>Last Active</th><th>Link</th></tr></thead><tbody>';
+
+        sorted.forEach(function(uid) {
+          var u = users[uid];
+          var pct = Math.round((u.count / totalVideos) * 100);
+          var lastStr = u.lastActive ? u.lastActive.toLocaleDateString() + ' ' + u.lastActive.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '—';
+          var link = window.location.origin + '?u=' + encodeURIComponent(uid);
+          var displayName = uid.charAt(0).toUpperCase() + uid.slice(1);
+          html += '<tr>' +
+            '<td><strong>' + displayName + '</strong></td>' +
+            '<td>' + u.count + ' / ' + totalVideos + '</td>' +
+            '<td>' + pct + '%</td>' +
+            '<td>' + lastStr + '</td>' +
+            '<td><a class="admin-link" href="' + link + '" target="_blank">Open</a></td>' +
+            '</tr>';
+        });
+
+        html += '</tbody></table>';
+        contentEl.innerHTML = html;
+      });
+  }
+})();
+</script>
+</body>
+</html>
