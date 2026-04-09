@@ -48,6 +48,8 @@ function getThumbnailUrl(videoId) {
 // Parse a single .txt file
 function parseFile(filePath) {
   const content = fs.readFileSync(filePath, 'utf8');
+  const stat = fs.statSync(filePath);
+  const mtime = stat.mtime;
   const lines = content.split('\n');
 
   if (lines.length < 2) return null;
@@ -97,11 +99,16 @@ function parseFile(filePath) {
     scriptBlocks.push({ header: currentHeader, body: currentBlock });
   }
 
+  // Format the file date as "Mar 28, 2026"
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const createdDate = `${months[mtime.getMonth()]} ${mtime.getDate()}, ${mtime.getFullYear()}`;
+
   return {
     title,
     url,
     transcript,
     scripts: scriptBlocks,
+    createdDate,
   };
 }
 
@@ -159,7 +166,7 @@ function scriptToHtml(scriptText) {
 
 // Generate a single video card
 function generateVideoCard(data, videoNumber) {
-  const { title, url, transcript, scripts } = data;
+  const { title, url, transcript, scripts, createdDate } = data;
   const videoId = extractVideoId(url);
   const thumbUrl = getThumbnailUrl(videoId);
   const titleLower = title.toLowerCase();
@@ -175,6 +182,7 @@ function generateVideoCard(data, videoNumber) {
     html += `        <a href="${escapeHtml(url)}" class="video-link" target="_blank">${escapeHtml(url)}</a>\n`;
   }
   html += `        <span class="script-count">${scriptCount} reaction script${scriptCount === 1 ? '' : 's'}</span>\n`;
+  html += `        <span class="card-date">Added ${escapeHtml(createdDate)}</span>\n`;
   html += `      </div>\n`;
   html += `    </div>\n`;
   html += `    <span class="toggle-icon">▼</span>\n`;
