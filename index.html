@@ -77,6 +77,74 @@ header .stats { color: #888; font-size: 0.95em; }
 .alt-label { color: #888; font-size: 0.82em; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
 .hidden { display: none; }
 
+/* ===== Video Number Badge ===== */
+.video-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  height: 44px;
+  background: #2E75B6;
+  color: #fff;
+  font-weight: 800;
+  font-size: 1.2em;
+  border-radius: 8px;
+  flex-shrink: 0;
+  letter-spacing: -0.5px;
+}
+
+/* ===== Done Toggle ===== */
+.done-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1px solid #333;
+  border-radius: 6px;
+  background: transparent;
+  color: #888;
+  font-size: 0.82em;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.done-btn:hover { border-color: #2E75B6; color: #aaa; }
+.done-btn.is-done {
+  background: #1a3a1a;
+  border-color: #2d6b2d;
+  color: #5cb85c;
+}
+.done-btn .check-icon { font-size: 1.1em; }
+.video-card.completed { opacity: 0.6; }
+.video-card.completed .card-header { position: relative; }
+
+/* ===== User Banner ===== */
+.user-banner {
+  background: #1a1a2e;
+  border: 1px solid #2E75B6;
+  border-radius: 8px;
+  padding: 10px 16px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.9em;
+}
+.user-banner .user-name { color: #2E75B6; font-weight: 600; }
+.user-banner .progress-text { color: #888; }
+.no-user-banner {
+  background: #2a1a1a;
+  border: 1px solid #5a3030;
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  text-align: center;
+  color: #ccc;
+  font-size: 0.9em;
+}
+.no-user-banner code { background: #333; padding: 2px 6px; border-radius: 4px; color: #2E75B6; }
+
 /* ===== Mobile Responsive ===== */
 @media (max-width: 768px) {
   .container { padding: 12px; }
@@ -104,6 +172,11 @@ header .stats { color: #888; font-size: 0.95em; }
 
   /* Transcript */
   .transcript { font-size: 0.82em; padding: 10px 12px; }
+
+  /* Number badge + done button */
+  .video-num { min-width: 36px; height: 36px; font-size: 1em; }
+  .done-btn { padding: 5px 10px; font-size: 0.78em; }
+  .user-banner { flex-direction: column; gap: 4px; text-align: center; padding: 8px 12px; font-size: 0.82em; }
 }
 
 @media (max-width: 420px) {
@@ -127,6 +200,8 @@ header .stats { color: #888; font-size: 0.95em; }
   </header>
 
   <input type="text" class="search-bar" placeholder="Search videos..." oninput="filterCards(this.value)" id="search">
+
+  <div id="user-status"></div>
 
   <div id="videos-container">
   <div class="video-card" data-title="2 employees, ai and 1 billion in revenue">
@@ -1067,5 +1142,135 @@ document.addEventListener('DOMContentLoaded', function() {
   font-size: 0.85em;
 }
 </style>
+
+<!-- Supabase JS CDN -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+<script>
+/* ===== Video Numbering + Mark as Done + User Links ===== */
+(function() {
+  var SUPABASE_URL = 'https://yuqeqricenygpsrdfswx.supabase.co';
+  var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1cWVxcmljZW55Z3BzcmRmc3d4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcwOTY1MjIsImV4cCI6MjA3MjY3MjUyMn0.yK9xBR-wk5wtBVk6_ne2qqlbYN1dIpM9kVdGWPEBLG8';
+  var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  // Get user from URL param ?u=name
+  var params = new URLSearchParams(window.location.search);
+  var userId = (params.get('u') || '').trim().toLowerCase();
+
+  // Add video numbers and done buttons to each card
+  var cards = document.querySelectorAll('.video-card');
+  var completedSet = new Set();
+
+  cards.forEach(function(card, i) {
+    var num = i + 1;
+    card.setAttribute('data-video-num', String(num));
+
+    var header = card.querySelector('.card-header');
+    var titleRow = header.querySelector('.card-title-row');
+
+    // Insert number badge before the thumbnail
+    var badge = document.createElement('div');
+    badge.className = 'video-num';
+    badge.textContent = '#' + num;
+    titleRow.insertBefore(badge, titleRow.firstChild);
+
+    // Add done button (only if user is identified)
+    if (userId) {
+      var toggleIcon = header.querySelector('.toggle-icon');
+      var doneBtn = document.createElement('button');
+      doneBtn.className = 'done-btn';
+      doneBtn.setAttribute('data-num', num);
+      doneBtn.innerHTML = '<span class="check-icon">○</span> Done';
+      doneBtn.onclick = function(e) {
+        e.stopPropagation();
+        toggleDone(num, card, doneBtn);
+      };
+      header.insertBefore(doneBtn, toggleIcon);
+    }
+  });
+
+  // Show user banner
+  var statusEl = document.getElementById('user-status');
+  if (userId) {
+    statusEl.innerHTML = '<div class="user-banner">' +
+      '<span>Logged in as <span class="user-name">' + userId.charAt(0).toUpperCase() + userId.slice(1) + '</span></span>' +
+      '<span class="progress-text" id="progress-count">Loading progress...</span>' +
+      '</div>';
+    loadProgress();
+  } else {
+    statusEl.innerHTML = '<div class="no-user-banner">' +
+      'To track your progress, use your personal link: <code>' + window.location.origin + '?u=yourname</code>' +
+      '</div>';
+  }
+
+  // Load completed videos from Supabase
+  function loadProgress() {
+    sb.from('rant_video_progress')
+      .select('video_id')
+      .eq('user_id', userId)
+      .then(function(res) {
+        if (res.error) { console.error('Supabase load error:', res.error); return; }
+        var rows = res.data || [];
+        rows.forEach(function(r) { completedSet.add(r.video_id); });
+        updateUI();
+      });
+  }
+
+  // Update all buttons and cards based on completedSet
+  function updateUI() {
+    cards.forEach(function(card) {
+      var num = card.getAttribute('data-video-num');
+      var btn = card.querySelector('.done-btn');
+      if (completedSet.has(num)) {
+        card.classList.add('completed');
+        if (btn) {
+          btn.classList.add('is-done');
+          btn.innerHTML = '<span class="check-icon">✓</span> Done';
+        }
+      } else {
+        card.classList.remove('completed');
+        if (btn) {
+          btn.classList.remove('is-done');
+          btn.innerHTML = '<span class="check-icon">○</span> Done';
+        }
+      }
+    });
+    // Update progress count
+    var countEl = document.getElementById('progress-count');
+    if (countEl) {
+      countEl.textContent = completedSet.size + ' / ' + cards.length + ' completed';
+    }
+  }
+
+  // Toggle done status
+  function toggleDone(num, card, btn) {
+    btn.disabled = true;
+    var videoId = String(num);
+    if (completedSet.has(videoId)) {
+      // Remove
+      sb.from('rant_video_progress')
+        .delete()
+        .eq('user_id', userId)
+        .eq('video_id', videoId)
+        .then(function(res) {
+          btn.disabled = false;
+          if (res.error) { console.error('Delete error:', res.error); return; }
+          completedSet.delete(videoId);
+          updateUI();
+        });
+    } else {
+      // Insert
+      sb.from('rant_video_progress')
+        .insert({ user_id: userId, video_id: videoId, completed: true })
+        .then(function(res) {
+          btn.disabled = false;
+          if (res.error) { console.error('Insert error:', res.error); return; }
+          completedSet.add(videoId);
+          updateUI();
+        });
+    }
+  }
+})();
+</script>
 </body>
 </html>
