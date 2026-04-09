@@ -91,7 +91,7 @@ app.post('/api/upload-video', upload.single('video'), async (req, res) => {
       ? R2_PUBLIC_URL.replace(/\/$/, '') + '/' + safeName
       : `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${R2_BUCKET_NAME}/${safeName}`;
 
-    console.log('[UPLOAD] Success:', safeName, '\u2192', publicUrl);
+    console.log('[UPLOAD] Success:', safeName, '->', publicUrl);
 
     res.json({
       success: true,
