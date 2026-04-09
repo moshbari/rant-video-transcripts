@@ -1,47 +1,35 @@
 const express = require('express');
 const multer = require('multer');
-const { execSync } = require('child_process');
+const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const path = require('path');
 const fs = require('fs');
 
 const app = express();
 
-// File upload config — 500MB max (GHL limit)
+// File upload config — 500MB max
 const upload = multer({
   dest: '/tmp/uploads/',
   limits: { fileSize: 500 * 1024 * 1024 }
 });
 
-// GHL config from environment variables
-const GHL_TOKEN = process.env.GHL_TOKEN;
-const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID;
-const GHL_FOLDER_NAME = process.env.GHL_FOLDER_NAME || 'rantscripts.1min.site videos';
-let ghlFolderId = null;
+// R2 config from environment variables
+const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID;
+const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY;
+const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID;
+const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME || 'rantscripts-videos';
+const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL; // e.g. https://pub-828b5621a07e4d509ef79d9d65f06653.r2.dev
 
-// ===== GHL API Functions (curl via execSync — the ONLY way that works) =====
-
-function findFolderId(folderName) {
-  let cmd = 'curl -s -X GET "https://services.leadconnectorhq.com/medias/files';
-  cmd += '?altId=' + GHL_LOCATION_ID + '&altType=location&type=folder&limit=100"';
-  cmd += ' -H "Authorization: Bearer ' + GHL_TOKEN + '"';
-  cmd += ' -H "Version: 2021-07-28"';
-  const data = JSON.parse(execSync(cmd, { encoding: 'utf8', timeout: 30000 }));
-  const folder = (data.files || []).find(f => f.name === folderName);
-  return folder ? folder._id : null; // USE ._id NOT .id
-}
-
-function uploadToGHL(filePath, fileName, contentType, folderId) {
-  let cmd = 'curl -s -X POST "https://services.leadconnectorhq.com/medias/upload-file"';
-  cmd += ' -H "Authorization: Bearer ' + GHL_TOKEN + '"';
-  cmd += ' -H "Version: 2021-07-28"';
-  cmd += ' -F "file=@' + filePath + ';type=' + contentType + '"';
-  cmd += ' -F "hosted=false"';
-  cmd += ' -F "name=' + fileName + '"';
-  cmd += ' -F "altId=' + GHL_LOCATION_ID + '"';
-  cmd += ' -F "altType=location"';
-  if (folderId) cmd += ' -F "parentId=' + folderId + '"';
-  const result = execSync(cmd, { encoding: 'utf8', timeout: 120000 });
-  return JSON.parse(result);
+// Initialize S3-compatible client for R2
+let s3Client = null;
+if (R2_ACCESS_KEY_ID && R2_SECRET_ACCESS_KEY && R2_ACCOUNT_ID) {
+  s3Client = new S3Client({
+    region: 'auto',
+    endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+    credentials: {
+      accessKeyId: R2_ACCESS_KEY_ID,
+      secretAccessKey: R2_SECRET_ACCESS_KEY,
+    },
+  });
 }
 
 // ===== Routes =====
@@ -54,13 +42,14 @@ app.use(express.json());
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
-    ghlFolder: GHL_FOLDER_NAME,
-    ghlFolderId: ghlFolderId || 'not resolved yet',
+    storage: 'cloudflare-r2',
+    bucket: R2_BUCKET_NAME,
+    r2Connected: !!s3Client,
   });
 });
 
 // Video upload endpoint
-app.post('/api/upload-video', upload.single('video'), (req, res) => {
+app.post('/api/upload-video', upload.single('video'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No video file uploaded' });
@@ -72,13 +61,9 @@ app.post('/api/upload-video', upload.single('video'), (req, res) => {
       return res.status(400).json({ error: 'videoNum is required' });
     }
 
-    // Ensure we have the GHL folder ID
-    if (!ghlFolderId) {
-      ghlFolderId = findFolderId(GHL_FOLDER_NAME);
-      if (!ghlFolderId) {
-        if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-        return res.status(500).json({ error: 'GHL folder "' + GHL_FOLDER_NAME + '" not found' });
-      }
+    if (!s3Client) {
+      if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      return res.status(500).json({ error: 'R2 storage not configured. Check environment variables.' });
     }
 
     // Build filename: username_video3_1712345678.mp4
@@ -86,20 +71,32 @@ app.post('/api/upload-video', upload.single('video'), (req, res) => {
     const safeName = req.body.userId.replace(/[^a-z0-9]/gi, '') + '_video' + req.body.videoNum + '_' + Date.now() + ext;
     const contentType = req.file.mimetype || 'video/mp4';
 
-    console.log('[UPLOAD] Starting GHL upload:', safeName, '(' + (req.file.size / 1024 / 1024).toFixed(1) + ' MB)');
+    console.log('[UPLOAD] Starting R2 upload:', safeName, '(' + (req.file.size / 1024 / 1024).toFixed(1) + ' MB)');
 
-    // Upload to GHL
-    const result = uploadToGHL(req.file.path, safeName, contentType, ghlFolderId);
+    // Read file and upload to R2
+    const fileBuffer = fs.readFileSync(req.file.path);
+
+    await s3Client.send(new PutObjectCommand({
+      Bucket: R2_BUCKET_NAME,
+      Key: safeName,
+      Body: fileBuffer,
+      ContentType: contentType,
+    }));
 
     // Clean up temp file
     if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
 
-    console.log('[UPLOAD] Success:', safeName, '→', result.url || result.fileUrl);
+    // Build public URL
+    const publicUrl = R2_PUBLIC_URL
+      ? R2_PUBLIC_URL.replace(/\/$/, '') + '/' + safeName
+      : `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${R2_BUCKET_NAME}/${safeName}`;
+
+    console.log('[UPLOAD] Success:', safeName, '\u2192', publicUrl);
 
     res.json({
       success: true,
-      ghlUrl: result.url || result.fileUrl,
-      fileId: result.fileId,
+      ghlUrl: publicUrl,   // kept as ghlUrl for frontend compatibility
+      fileId: safeName,
       fileName: safeName,
     });
 
@@ -114,18 +111,12 @@ app.post('/api/upload-video', upload.single('video'), (req, res) => {
 // ===== Start Server =====
 
 async function init() {
-  // Resolve GHL folder ID on startup
-  if (GHL_TOKEN && GHL_LOCATION_ID) {
-    try {
-      ghlFolderId = findFolderId(GHL_FOLDER_NAME);
-      console.log('[GHL] Folder "' + GHL_FOLDER_NAME + '" → _id: ' + ghlFolderId);
-    } catch (err) {
-      console.warn('[GHL] Could not resolve folder on startup:', err.message);
-      console.warn('[GHL] Will retry on first upload request.');
-    }
+  if (s3Client) {
+    console.log('[R2] Connected to bucket "' + R2_BUCKET_NAME + '"');
+    console.log('[R2] Public URL base: ' + (R2_PUBLIC_URL || 'using S3 endpoint'));
   } else {
-    console.warn('[GHL] Missing GHL_TOKEN or GHL_LOCATION_ID environment variables.');
-    console.warn('[GHL] Video uploads will not work until these are set.');
+    console.warn('[R2] Missing R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, or R2_ACCOUNT_ID.');
+    console.warn('[R2] Video uploads will not work until these are set.');
   }
 
   const PORT = process.env.PORT || 3000;
