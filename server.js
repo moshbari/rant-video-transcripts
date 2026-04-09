@@ -1,6 +1,6 @@
 const express = require('express');
 const multer = require('multer');
-const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const path = require('path');
 const fs = require('fs');
 
@@ -105,6 +105,82 @@ app.post('/api/upload-video', upload.single('video'), async (req, res) => {
     if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
     console.error('[UPLOAD ERROR]', err.message);
     res.status(500).json({ error: 'Upload failed: ' + err.message });
+  }
+});
+
+// Video download endpoint — streams file from R2 directly to user
+app.get('/api/download-video/:fileName', async (req, res) => {
+  try {
+    if (!s3Client) {
+      return res.status(500).json({ error: 'R2 storage not configured.' });
+    }
+
+    const fileName = req.params.fileName;
+    if (!fileName || fileName.includes('..') || fileName.includes('/')) {
+      return res.status(400).json({ error: 'Invalid file name.' });
+    }
+
+    console.log('[DOWNLOAD] Requesting:', fileName);
+
+    const command = new GetObjectCommand({
+      Bucket: R2_BUCKET_NAME,
+      Key: fileName,
+    });
+
+    const r2Response = await s3Client.send(command);
+
+    // Set headers for download
+    res.setHeader('Content-Type', r2Response.ContentType || 'video/mp4');
+    res.setHeader('Content-Disposition', 'attachment; filename="' + fileName + '"');
+    if (r2Response.ContentLength) {
+      res.setHeader('Content-Length', r2Response.ContentLength);
+    }
+
+    // Stream the body to the response
+    r2Response.Body.pipe(res);
+
+  } catch (err) {
+    if (err.name === 'NoSuchKey' || err.$metadata?.httpStatusCode === 404) {
+      return res.status(404).json({ error: 'File not found. It may have been auto-deleted after 25 days.' });
+    }
+    console.error('[DOWNLOAD ERROR]', err.message);
+    res.status(500).json({ error: 'Download failed: ' + err.message });
+  }
+});
+
+// Video delete endpoint — removes from R2 storage
+app.post('/api/delete-video', async (req, res) => {
+  try {
+    if (!s3Client) {
+      return res.status(500).json({ error: 'R2 storage not configured.' });
+    }
+
+    const { fileName, userId, videoNum } = req.body;
+    if (!fileName) {
+      return res.status(400).json({ error: 'fileName is required.' });
+    }
+    if (!userId) {
+      return res.status(400).json({ error: 'userId is required.' });
+    }
+
+    console.log('[DELETE] Removing from R2:', fileName, 'by user:', userId);
+
+    // Delete from R2
+    await s3Client.send(new DeleteObjectCommand({
+      Bucket: R2_BUCKET_NAME,
+      Key: fileName,
+    }));
+
+    console.log('[DELETE] Success:', fileName);
+
+    res.json({
+      success: true,
+      deleted: fileName,
+    });
+
+  } catch (err) {
+    console.error('[DELETE ERROR]', err.message);
+    res.status(500).json({ error: 'Delete failed: ' + err.message });
   }
 });
 
