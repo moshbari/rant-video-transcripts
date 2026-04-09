@@ -133,17 +133,68 @@ header .stats { color: #888; font-size: 0.95em; }
 }
 .user-banner .user-name { color: #2E75B6; font-weight: 600; }
 .user-banner .progress-text { color: #888; }
-.no-user-banner {
-  background: #2a1a1a;
-  border: 1px solid #5a3030;
-  border-radius: 8px;
-  padding: 14px 16px;
-  margin-bottom: 16px;
+/* ===== Onboarding Box ===== */
+.onboard-box {
+  background: #1a1a2e;
+  border: 1px solid #2E75B6;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
   text-align: center;
-  color: #ccc;
-  font-size: 0.9em;
 }
-.no-user-banner code { background: #333; padding: 2px 6px; border-radius: 4px; color: #2E75B6; }
+.onboard-box h2 { color: #fff; font-size: 1.15em; margin-bottom: 6px; }
+.onboard-box p { color: #999; font-size: 0.88em; margin-bottom: 14px; line-height: 1.5; }
+.onboard-row {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  align-items: center;
+  max-width: 420px;
+  margin: 0 auto;
+}
+.onboard-row input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid #333;
+  border-radius: 6px;
+  background: #111;
+  color: #fff;
+  font-size: 1em;
+}
+.onboard-row input:focus { outline: none; border-color: #2E75B6; }
+.onboard-row button {
+  padding: 10px 18px;
+  background: #2E75B6;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.92em;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+.onboard-row button:hover { background: #245f96; }
+.onboard-error { color: #e74c3c; font-size: 0.82em; margin-top: 8px; }
+.onboard-switch { color: #666; font-size: 0.8em; margin-top: 10px; }
+.onboard-switch a { color: #2E75B6; cursor: pointer; text-decoration: underline; }
+
+/* ===== Admin Dashboard ===== */
+.admin-panel {
+  background: #1a1a1a;
+  border: 1px solid #2E75B6;
+  border-radius: 10px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+.admin-panel h2 { color: #fff; font-size: 1.2em; margin-bottom: 16px; }
+.admin-table { width: 100%; border-collapse: collapse; }
+.admin-table th { text-align: left; color: #888; font-size: 0.82em; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px; border-bottom: 1px solid #333; }
+.admin-table td { padding: 10px 12px; border-bottom: 1px solid #1e1e1e; color: #e0e0e0; font-size: 0.9em; }
+.admin-table tr:hover td { background: #111; }
+.admin-link { color: #2E75B6; text-decoration: none; font-size: 0.82em; }
+.admin-link:hover { text-decoration: underline; }
+.admin-loading { color: #888; text-align: center; padding: 20px; }
 
 /* ===== Mobile Responsive ===== */
 @media (max-width: 768px) {
@@ -177,6 +228,16 @@ header .stats { color: #888; font-size: 0.95em; }
   .video-num { min-width: 36px; height: 36px; font-size: 1em; }
   .done-btn { padding: 5px 10px; font-size: 0.78em; }
   .user-banner { flex-direction: column; gap: 4px; text-align: center; padding: 8px 12px; font-size: 0.82em; }
+
+  /* Onboarding */
+  .onboard-box { padding: 16px; }
+  .onboard-box h2 { font-size: 1em; }
+  .onboard-row { flex-direction: column; }
+  .onboard-row input, .onboard-row button { width: 100%; }
+
+  /* Admin */
+  .admin-table { font-size: 0.82em; }
+  .admin-table th, .admin-table td { padding: 6px 8px; }
 }
 
 @media (max-width: 420px) {
@@ -1147,17 +1208,37 @@ document.addEventListener('DOMContentLoaded', function() {
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 
 <script>
-/* ===== Video Numbering + Mark as Done + User Links ===== */
+/* ===== Video Numbering + Mark as Done + User Links + Admin ===== */
 (function() {
   var SUPABASE_URL = 'https://yuqeqricenygpsrdfswx.supabase.co';
   var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1cWVxcmljZW55Z3BzcmRmc3d4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcwOTY1MjIsImV4cCI6MjA3MjY3MjUyMn0.yK9xBR-wk5wtBVk6_ne2qqlbYN1dIpM9kVdGWPEBLG8';
   var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  // Get user from URL param ?u=name
   var params = new URLSearchParams(window.location.search);
+  var isAdmin = params.get('admin') === 'mosh';
+
+  // --- Auto-redirect: if no ?u= param but we have a saved username, redirect ---
+  var savedUser = null;
+  try { savedUser = localStorage.getItem('rant_username'); } catch(e) {}
   var userId = (params.get('u') || '').trim().toLowerCase();
 
-  // Add video numbers and done buttons to each card
+  if (!userId && !isAdmin && savedUser) {
+    window.location.replace(window.location.origin + window.location.pathname + '?u=' + encodeURIComponent(savedUser));
+    return;
+  }
+
+  // Save current user to localStorage for next visit
+  if (userId) {
+    try { localStorage.setItem('rant_username', userId); } catch(e) {}
+  }
+
+  // --- Admin Dashboard ---
+  if (isAdmin) {
+    showAdminDashboard();
+    return;
+  }
+
+  // --- Add video numbers to every card ---
   var cards = document.querySelectorAll('.video-card');
   var completedSet = new Set();
 
@@ -1168,13 +1249,11 @@ document.addEventListener('DOMContentLoaded', function() {
     var header = card.querySelector('.card-header');
     var titleRow = header.querySelector('.card-title-row');
 
-    // Insert number badge before the thumbnail
     var badge = document.createElement('div');
     badge.className = 'video-num';
     badge.textContent = '#' + num;
     titleRow.insertBefore(badge, titleRow.firstChild);
 
-    // Add done button (only if user is identified)
     if (userId) {
       var toggleIcon = header.querySelector('.toggle-icon');
       var doneBtn = document.createElement('button');
@@ -1189,21 +1268,50 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  // Show user banner
+  // --- Show user banner OR onboarding box ---
   var statusEl = document.getElementById('user-status');
   if (userId) {
+    var displayName = userId.charAt(0).toUpperCase() + userId.slice(1);
     statusEl.innerHTML = '<div class="user-banner">' +
-      '<span>Logged in as <span class="user-name">' + userId.charAt(0).toUpperCase() + userId.slice(1) + '</span></span>' +
+      '<span>Welcome, <span class="user-name">' + displayName + '</span></span>' +
       '<span class="progress-text" id="progress-count">Loading progress...</span>' +
-      '</div>';
+      '</div>' +
+      '<div class="onboard-switch">Not ' + displayName + '? <a id="switch-user-link">Switch user</a></div>';
+    document.getElementById('switch-user-link').onclick = function() {
+      try { localStorage.removeItem('rant_username'); } catch(e) {}
+      window.location.replace(window.location.origin + window.location.pathname);
+    };
     loadProgress();
   } else {
-    statusEl.innerHTML = '<div class="no-user-banner">' +
-      'To track your progress, use your personal link: <code>' + window.location.origin + '?u=yourname</code>' +
+    statusEl.innerHTML =
+      '<div class="onboard-box">' +
+        '<h2>Welcome! Set up your profile to track progress</h2>' +
+        '<p>Choose a one-word username. Your progress will be saved and synced across all your devices.</p>' +
+        '<div class="onboard-row">' +
+          '<input type="text" id="onboard-input" placeholder="e.g. sarah" maxlength="20" autocomplete="off" spellcheck="false">' +
+          '<button id="onboard-btn">Create My Unique Link</button>' +
+        '</div>' +
+        '<div id="onboard-error" class="onboard-error"></div>' +
       '</div>';
+
+    var input = document.getElementById('onboard-input');
+    var btn = document.getElementById('onboard-btn');
+    var errEl = document.getElementById('onboard-error');
+
+    btn.onclick = function() { createUser(); };
+    input.onkeydown = function(e) { if (e.key === 'Enter') createUser(); };
+
+    function createUser() {
+      var name = input.value.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (!name) { errEl.textContent = 'Please enter a username (letters and numbers only).'; return; }
+      if (name.length < 2) { errEl.textContent = 'Username must be at least 2 characters.'; return; }
+      errEl.textContent = '';
+      try { localStorage.setItem('rant_username', name); } catch(e) {}
+      window.location.replace(window.location.origin + window.location.pathname + '?u=' + encodeURIComponent(name));
+    }
   }
 
-  // Load completed videos from Supabase
+  // --- Load completed videos from Supabase ---
   function loadProgress() {
     sb.from('rant_video_progress')
       .select('video_id')
@@ -1216,42 +1324,27 @@ document.addEventListener('DOMContentLoaded', function() {
       });
   }
 
-  // Update all buttons and cards based on completedSet
   function updateUI() {
     cards.forEach(function(card) {
       var num = card.getAttribute('data-video-num');
       var btn = card.querySelector('.done-btn');
       if (completedSet.has(num)) {
         card.classList.add('completed');
-        if (btn) {
-          btn.classList.add('is-done');
-          btn.innerHTML = '<span class="check-icon">✓</span> Done';
-        }
+        if (btn) { btn.classList.add('is-done'); btn.innerHTML = '<span class="check-icon">✓</span> Done'; }
       } else {
         card.classList.remove('completed');
-        if (btn) {
-          btn.classList.remove('is-done');
-          btn.innerHTML = '<span class="check-icon">○</span> Done';
-        }
+        if (btn) { btn.classList.remove('is-done'); btn.innerHTML = '<span class="check-icon">○</span> Done'; }
       }
     });
-    // Update progress count
     var countEl = document.getElementById('progress-count');
-    if (countEl) {
-      countEl.textContent = completedSet.size + ' / ' + cards.length + ' completed';
-    }
+    if (countEl) countEl.textContent = completedSet.size + ' / ' + cards.length + ' completed';
   }
 
-  // Toggle done status
   function toggleDone(num, card, btn) {
     btn.disabled = true;
     var videoId = String(num);
     if (completedSet.has(videoId)) {
-      // Remove
-      sb.from('rant_video_progress')
-        .delete()
-        .eq('user_id', userId)
-        .eq('video_id', videoId)
+      sb.from('rant_video_progress').delete().eq('user_id', userId).eq('video_id', videoId)
         .then(function(res) {
           btn.disabled = false;
           if (res.error) { console.error('Delete error:', res.error); return; }
@@ -1259,9 +1352,7 @@ document.addEventListener('DOMContentLoaded', function() {
           updateUI();
         });
     } else {
-      // Insert
-      sb.from('rant_video_progress')
-        .insert({ user_id: userId, video_id: videoId, completed: true })
+      sb.from('rant_video_progress').insert({ user_id: userId, video_id: videoId, completed: true })
         .then(function(res) {
           btn.disabled = false;
           if (res.error) { console.error('Insert error:', res.error); return; }
@@ -1269,6 +1360,68 @@ document.addEventListener('DOMContentLoaded', function() {
           updateUI();
         });
     }
+  }
+
+  // --- Admin Dashboard ---
+  function showAdminDashboard() {
+    var totalVideos = document.querySelectorAll('.video-card').length;
+    // Hide the videos container and search bar
+    document.getElementById('videos-container').style.display = 'none';
+    document.getElementById('search').style.display = 'none';
+
+    var statusEl = document.getElementById('user-status');
+    statusEl.innerHTML =
+      '<div class="admin-panel">' +
+        '<h2>Owner Dashboard — All Users</h2>' +
+        '<div id="admin-content" class="admin-loading">Loading user data...</div>' +
+      '</div>';
+
+    sb.from('rant_video_progress').select('user_id, video_id, completed_at')
+      .then(function(res) {
+        var contentEl = document.getElementById('admin-content');
+        if (res.error) { contentEl.textContent = 'Error: ' + res.error.message; return; }
+        var rows = res.data || [];
+        if (rows.length === 0) { contentEl.textContent = 'No users have tracked progress yet.'; return; }
+
+        // Aggregate by user
+        var users = {};
+        rows.forEach(function(r) {
+          if (!users[r.user_id]) users[r.user_id] = { count: 0, lastActive: null };
+          users[r.user_id].count++;
+          var ts = r.completed_at ? new Date(r.completed_at) : null;
+          if (ts && (!users[r.user_id].lastActive || ts > users[r.user_id].lastActive)) {
+            users[r.user_id].lastActive = ts;
+          }
+        });
+
+        // Sort by last active (most recent first)
+        var sorted = Object.keys(users).sort(function(a, b) {
+          var ta = users[a].lastActive || new Date(0);
+          var tb = users[b].lastActive || new Date(0);
+          return tb - ta;
+        });
+
+        var html = '<table class="admin-table">' +
+          '<thead><tr><th>User</th><th>Videos Done</th><th>Progress</th><th>Last Active</th><th>Link</th></tr></thead><tbody>';
+
+        sorted.forEach(function(uid) {
+          var u = users[uid];
+          var pct = Math.round((u.count / totalVideos) * 100);
+          var lastStr = u.lastActive ? u.lastActive.toLocaleDateString() + ' ' + u.lastActive.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '—';
+          var link = window.location.origin + '?u=' + encodeURIComponent(uid);
+          var displayName = uid.charAt(0).toUpperCase() + uid.slice(1);
+          html += '<tr>' +
+            '<td><strong>' + displayName + '</strong></td>' +
+            '<td>' + u.count + ' / ' + totalVideos + '</td>' +
+            '<td>' + pct + '%</td>' +
+            '<td>' + lastStr + '</td>' +
+            '<td><a class="admin-link" href="' + link + '" target="_blank">Open</a></td>' +
+            '</tr>';
+        });
+
+        html += '</tbody></table>';
+        contentEl.innerHTML = html;
+      });
   }
 })();
 </script>
