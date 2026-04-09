@@ -120,6 +120,50 @@ header .stats { color: #888; font-size: 0.95em; }
 .video-card.completed { opacity: 0.6; }
 .video-card.completed .card-header { position: relative; }
 
+/* ===== Upload Button ===== */
+.upload-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1px solid #333;
+  border-radius: 6px;
+  background: transparent;
+  color: #888;
+  font-size: 0.82em;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.upload-btn:hover { border-color: #2E75B6; color: #aaa; }
+.upload-btn.is-uploaded {
+  background: #1a2a3a;
+  border-color: #2E75B6;
+  color: #2E75B6;
+}
+.upload-btn.uploading {
+  pointer-events: none;
+  opacity: 0.6;
+}
+.upload-btn .upload-icon { font-size: 1.1em; }
+
+/* Upload status area inside card body */
+.upload-status {
+  background: #0a0a0a;
+  border: 1px solid #1e1e1e;
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  display: none;
+}
+.upload-status.visible { display: block; }
+.upload-status .upload-label { color: #666; font-size: 0.82em; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+.upload-status a { color: #2E75B6; text-decoration: none; font-size: 0.9em; word-break: break-all; }
+.upload-status a:hover { text-decoration: underline; }
+.upload-progress { color: #888; font-size: 0.85em; }
+.upload-error { color: #e74c3c; font-size: 0.85em; }
+
 /* ===== User Banner ===== */
 .user-banner {
   background: #1a1a2e;
@@ -3091,6 +3135,147 @@ document.addEventListener('DOMContentLoaded', function() {
           updateUI();
         });
     }
+  }
+
+  // ===== Video Upload Feature =====
+  var uploadedSet = {}; // videoNum → { ghlUrl, fileName }
+
+  function loadUploads() {
+    sb.from('rant_video_uploads')
+      .select('video_num, ghl_url, file_name')
+      .eq('user_id', userId)
+      .then(function(res) {
+        if (res.error) { console.error('Load uploads error:', res.error); return; }
+        (res.data || []).forEach(function(r) {
+          uploadedSet[r.video_num] = { ghlUrl: r.ghl_url, fileName: r.file_name };
+        });
+        updateUploadUI();
+      });
+  }
+
+  function updateUploadUI() {
+    cards.forEach(function(card) {
+      var num = card.getAttribute('data-video-num');
+      var uploadBtn = card.querySelector('.upload-btn');
+      var statusEl = card.querySelector('.upload-status');
+      if (!uploadBtn || !statusEl) return;
+
+      if (uploadedSet[num]) {
+        uploadBtn.classList.add('is-uploaded');
+        uploadBtn.innerHTML = '<span class="upload-icon">✓</span> Uploaded';
+        statusEl.classList.add('visible');
+        statusEl.innerHTML =
+          '<div class="upload-label">Your Reaction Video</div>' +
+          '<a href="' + uploadedSet[num].ghlUrl + '" target="_blank">▶ Watch uploaded video</a>';
+      }
+    });
+  }
+
+  function handleUpload(num, card, uploadBtn) {
+    var fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'video/*';
+    fileInput.style.display = 'none';
+    document.body.appendChild(fileInput);
+
+    fileInput.onchange = function() {
+      if (!fileInput.files || !fileInput.files[0]) return;
+      var file = fileInput.files[0];
+
+      // Check file size (500MB max)
+      if (file.size > 500 * 1024 * 1024) {
+        alert('File too large. Maximum size is 500MB.');
+        document.body.removeChild(fileInput);
+        return;
+      }
+
+      // Show uploading state
+      uploadBtn.classList.add('uploading');
+      uploadBtn.innerHTML = '<span class="upload-icon">⏳</span> Uploading...';
+      var statusEl = card.querySelector('.upload-status');
+      statusEl.classList.add('visible');
+      statusEl.innerHTML = '<div class="upload-progress">Uploading to GoHighLevel... This may take a moment for large files.</div>';
+
+      // Build form data
+      var formData = new FormData();
+      formData.append('video', file);
+      formData.append('userId', userId);
+      formData.append('videoNum', num);
+
+      // Upload to server
+      fetch('/api/upload-video', {
+        method: 'POST',
+        body: formData
+      })
+      .then(function(response) { return response.json(); })
+      .then(function(data) {
+        if (data.error) throw new Error(data.error);
+
+        // Save GHL URL to Supabase
+        sb.from('rant_video_uploads')
+          .upsert({
+            user_id: userId,
+            video_num: String(num),
+            ghl_url: data.ghlUrl,
+            file_name: data.fileName
+          }, { onConflict: 'user_id,video_num' })
+          .then(function(res) {
+            if (res.error) console.error('Save upload error:', res.error);
+          });
+
+        // Update local state
+        uploadedSet[String(num)] = { ghlUrl: data.ghlUrl, fileName: data.fileName };
+
+        // Update UI
+        uploadBtn.classList.remove('uploading');
+        uploadBtn.classList.add('is-uploaded');
+        uploadBtn.innerHTML = '<span class="upload-icon">✓</span> Uploaded';
+        statusEl.innerHTML =
+          '<div class="upload-label">Your Reaction Video</div>' +
+          '<a href="' + data.ghlUrl + '" target="_blank">▶ Watch uploaded video</a>';
+      })
+      .catch(function(err) {
+        uploadBtn.classList.remove('uploading');
+        uploadBtn.innerHTML = '<span class="upload-icon">↑</span> Upload';
+        statusEl.innerHTML = '<div class="upload-error">Upload failed: ' + err.message + '</div>';
+        console.error('[UPLOAD ERROR]', err);
+      });
+
+      document.body.removeChild(fileInput);
+    };
+
+    fileInput.click();
+  }
+
+  // Add upload buttons to cards (only for logged-in users)
+  if (userId) {
+    cards.forEach(function(card) {
+      var num = card.getAttribute('data-video-num');
+      var header = card.querySelector('.card-header');
+      var doneBtn = card.querySelector('.done-btn');
+
+      // Create upload button (before done button)
+      var uploadBtn = document.createElement('button');
+      uploadBtn.className = 'upload-btn';
+      uploadBtn.innerHTML = '<span class="upload-icon">↑</span> Upload';
+      uploadBtn.onclick = function(e) {
+        e.stopPropagation();
+        handleUpload(num, card, uploadBtn);
+      };
+      if (doneBtn) {
+        header.insertBefore(uploadBtn, doneBtn);
+      }
+
+      // Create upload status area in card body
+      var cardBody = card.querySelector('.card-body');
+      if (cardBody) {
+        var statusEl = document.createElement('div');
+        statusEl.className = 'upload-status';
+        cardBody.insertBefore(statusEl, cardBody.firstChild);
+      }
+    });
+
+    loadUploads();
   }
 
   function showAdminDashboard() {
