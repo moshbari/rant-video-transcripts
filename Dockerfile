@@ -1,8 +1,5 @@
 FROM node:20-alpine
 
-# Install curl (required for GHL API uploads)
-RUN apk add --no-cache curl
-
 WORKDIR /app
 
 # Install dependencies
