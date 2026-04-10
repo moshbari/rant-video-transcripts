@@ -148,13 +148,13 @@ header .stats { color: #888; font-size: 0.95em; }
 }
 .upload-btn .upload-icon { font-size: 1.1em; }
 
-/* Upload status area inside card body */
+/* Upload status area — now per-script, inside reaction blocks */
 .upload-status {
   background: #0a0a0a;
   border: 1px solid #1e1e1e;
   border-radius: 6px;
   padding: 12px 16px;
-  margin-bottom: 16px;
+  margin-top: 16px;
   display: none;
 }
 .upload-status.visible { display: block; }
@@ -163,6 +163,55 @@ header .stats { color: #888; font-size: 0.95em; }
 .upload-status a:hover { text-decoration: underline; }
 .upload-progress { color: #888; font-size: 0.85em; }
 .upload-error { color: #e74c3c; font-size: 0.85em; }
+
+/* Per-script upload button inside reaction block */
+.script-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid #333;
+  border-radius: 6px;
+  background: transparent;
+  color: #888;
+  font-size: 0.82em;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  margin-top: 16px;
+}
+.script-upload-btn:hover { border-color: #2E75B6; color: #aaa; }
+.script-upload-btn.is-uploaded {
+  background: #1a2a3a;
+  border-color: #2E75B6;
+  color: #2E75B6;
+}
+.script-upload-btn.uploading {
+  pointer-events: none;
+  opacity: 0.6;
+}
+.script-upload-btn .upload-icon { font-size: 1.1em; }
+
+/* Header upload summary badge */
+.upload-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1px solid #333;
+  border-radius: 6px;
+  background: transparent;
+  color: #666;
+  font-size: 0.78em;
+  white-space: nowrap;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+.upload-summary.has-uploads {
+  border-color: #2E75B6;
+  color: #2E75B6;
+  background: #1a2a3a;
+}
 
 /* Download & Delete action buttons inside upload-status */
 .upload-actions { display: flex; gap: 10px; margin-top: 10px; }
@@ -4857,8 +4906,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  // ===== Video Upload Feature =====
-  var uploadedSet = {}; // videoNum → { ghlUrl, fileName }
+  // ===== Video Upload Feature (per-script: 3 uploads per video) =====
+  var uploadedSet = {}; // "videoNum-scriptNum" → { ghlUrl, fileName, createdAt }
 
   function loadUploads() {
     sb.from('rant_video_uploads')
@@ -4873,7 +4922,7 @@ document.addEventListener('DOMContentLoaded', function() {
       });
   }
 
-  function buildUploadedHTML(num, info) {
+  function buildUploadedHTML(compositeKey, info) {
     var daysLeft = '';
     if (info.createdAt) {
       var created = new Date(info.createdAt);
@@ -4890,28 +4939,50 @@ document.addEventListener('DOMContentLoaded', function() {
       '<a href="' + info.ghlUrl + '" target="_blank">▶ Watch uploaded video</a>' +
       '<div class="upload-actions">' +
         '<button class="dl-btn" onclick="downloadVideo(\'' + info.fileName + '\')">⬇ Download</button>' +
-        '<button class="del-btn" onclick="deleteVideo(\'' + num + '\', \'' + info.fileName + '\', this)">🗑 Delete</button>' +
+        '<button class="del-btn" onclick="deleteVideo(\'' + compositeKey + '\', \'' + info.fileName + '\', this)">🗑 Delete</button>' +
       '</div>' +
       daysLeft;
   }
 
   function updateUploadUI() {
+    // Update per-script upload buttons & status areas
+    document.querySelectorAll('.script-upload-btn').forEach(function(btn) {
+      var key = btn.getAttribute('data-upload-key');
+      var statusEl = btn.nextElementSibling; // .upload-status div
+      if (uploadedSet[key]) {
+        btn.classList.add('is-uploaded');
+        btn.innerHTML = '<span class="upload-icon">✓</span> Uploaded';
+        if (statusEl) {
+          statusEl.classList.add('visible');
+          statusEl.innerHTML = buildUploadedHTML(key, uploadedSet[key]);
+        }
+      }
+    });
+    // Update header summary badges
+    updateAllSummaryBadges();
+  }
+
+  function updateAllSummaryBadges() {
     cards.forEach(function(card) {
       var num = card.getAttribute('data-video-num');
-      var uploadBtn = card.querySelector('.upload-btn');
-      var statusEl = card.querySelector('.upload-status');
-      if (!uploadBtn || !statusEl) return;
-
-      if (uploadedSet[num]) {
-        uploadBtn.classList.add('is-uploaded');
-        uploadBtn.innerHTML = '<span class="upload-icon">✓</span> Uploaded';
-        statusEl.classList.add('visible');
-        statusEl.innerHTML = buildUploadedHTML(num, uploadedSet[num]);
+      var badge = card.querySelector('.upload-summary');
+      if (!badge) return;
+      var blocks = card.querySelectorAll('.reaction-block');
+      var total = blocks.length;
+      var uploaded = 0;
+      for (var s = 1; s <= total; s++) {
+        if (uploadedSet[num + '-' + s]) uploaded++;
+      }
+      badge.textContent = '↑ ' + uploaded + '/' + total;
+      if (uploaded > 0) {
+        badge.classList.add('has-uploads');
+      } else {
+        badge.classList.remove('has-uploads');
       }
     });
   }
 
-  function handleUpload(num, card, uploadBtn) {
+  function handleUpload(compositeKey, uploadBtn) {
     var fileInput = document.createElement('input');
     fileInput.type = 'file';
     fileInput.accept = 'video/*';
@@ -4922,27 +4993,25 @@ document.addEventListener('DOMContentLoaded', function() {
       if (!fileInput.files || !fileInput.files[0]) return;
       var file = fileInput.files[0];
 
-      // Check file size (500MB max)
       if (file.size > 500 * 1024 * 1024) {
         alert('File too large. Maximum size is 500MB.');
         document.body.removeChild(fileInput);
         return;
       }
 
-      // Show uploading state
       uploadBtn.classList.add('uploading');
       uploadBtn.innerHTML = '<span class="upload-icon">⏳</span> Uploading...';
-      var statusEl = card.querySelector('.upload-status');
-      statusEl.classList.add('visible');
-      statusEl.innerHTML = '<div class="upload-progress">Uploading to Cloudflare R2... This may take a moment for large files.</div>';
+      var statusEl = uploadBtn.nextElementSibling;
+      if (statusEl) {
+        statusEl.classList.add('visible');
+        statusEl.innerHTML = '<div class="upload-progress">Uploading to Cloudflare R2... This may take a moment for large files.</div>';
+      }
 
-      // Build form data
       var formData = new FormData();
       formData.append('video', file);
       formData.append('userId', userId);
-      formData.append('videoNum', num);
+      formData.append('videoNum', compositeKey);
 
-      // Upload to server
       fetch('/api/upload-video', {
         method: 'POST',
         body: formData
@@ -4951,11 +5020,10 @@ document.addEventListener('DOMContentLoaded', function() {
       .then(function(data) {
         if (data.error) throw new Error(data.error);
 
-        // Save GHL URL to Supabase
         sb.from('rant_video_uploads')
           .upsert({
             user_id: userId,
-            video_num: String(num),
+            video_num: compositeKey,
             ghl_url: data.ghlUrl,
             file_name: data.fileName
           }, { onConflict: 'user_id,video_num' })
@@ -4963,19 +5031,22 @@ document.addEventListener('DOMContentLoaded', function() {
             if (res.error) console.error('Save upload error:', res.error);
           });
 
-        // Update local state
-        uploadedSet[String(num)] = { ghlUrl: data.ghlUrl, fileName: data.fileName, createdAt: new Date().toISOString() };
+        uploadedSet[compositeKey] = { ghlUrl: data.ghlUrl, fileName: data.fileName, createdAt: new Date().toISOString() };
 
-        // Update UI
         uploadBtn.classList.remove('uploading');
         uploadBtn.classList.add('is-uploaded');
         uploadBtn.innerHTML = '<span class="upload-icon">✓</span> Uploaded';
-        statusEl.innerHTML = buildUploadedHTML(String(num), uploadedSet[String(num)]);
+        if (statusEl) {
+          statusEl.innerHTML = buildUploadedHTML(compositeKey, uploadedSet[compositeKey]);
+        }
+        updateAllSummaryBadges();
       })
       .catch(function(err) {
         uploadBtn.classList.remove('uploading');
-        uploadBtn.innerHTML = '<span class="upload-icon">↑</span> Upload';
-        statusEl.innerHTML = '<div class="upload-error">Upload failed: ' + err.message + '</div>';
+        uploadBtn.innerHTML = '<span class="upload-icon">↑</span> Upload Reaction';
+        if (statusEl) {
+          statusEl.innerHTML = '<div class="upload-error">Upload failed: ' + err.message + '</div>';
+        }
         console.error('[UPLOAD ERROR]', err);
       });
 
@@ -4991,7 +5062,7 @@ document.addEventListener('DOMContentLoaded', function() {
   };
 
   // Delete video from R2 + Supabase
-  window.deleteVideo = function(videoNum, fileName, btn) {
+  window.deleteVideo = function(compositeKey, fileName, btn) {
     if (!confirm('Delete this reaction video? This cannot be undone.')) return;
 
     btn.disabled = true;
@@ -5000,38 +5071,34 @@ document.addEventListener('DOMContentLoaded', function() {
     fetch('/api/delete-video', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fileName: fileName, userId: userId, videoNum: videoNum })
+      body: JSON.stringify({ fileName: fileName, userId: userId, videoNum: compositeKey })
     })
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (data.error) throw new Error(data.error);
 
-      // Remove from Supabase
       sb.from('rant_video_uploads')
         .delete()
         .eq('user_id', userId)
-        .eq('video_num', videoNum)
+        .eq('video_num', compositeKey)
         .then(function(res) {
           if (res.error) console.error('Supabase delete error:', res.error);
         });
 
-      // Reset local state
-      delete uploadedSet[videoNum];
+      delete uploadedSet[compositeKey];
 
-      // Reset UI for this card
-      var card = document.querySelector('.video-card[data-video-num="' + videoNum + '"]');
-      if (card) {
-        var uploadBtn = card.querySelector('.upload-btn');
-        var statusEl = card.querySelector('.upload-status');
-        if (uploadBtn) {
-          uploadBtn.classList.remove('is-uploaded');
-          uploadBtn.innerHTML = '<span class="upload-icon">↑</span> Upload';
-        }
+      // Reset the specific script upload button & status
+      var uploadBtn = document.querySelector('.script-upload-btn[data-upload-key="' + compositeKey + '"]');
+      if (uploadBtn) {
+        uploadBtn.classList.remove('is-uploaded');
+        uploadBtn.innerHTML = '<span class="upload-icon">↑</span> Upload Reaction';
+        var statusEl = uploadBtn.nextElementSibling;
         if (statusEl) {
           statusEl.classList.remove('visible');
           statusEl.innerHTML = '';
         }
       }
+      updateAllSummaryBadges();
     })
     .catch(function(err) {
       alert('Delete failed: ' + err.message);
@@ -5040,32 +5107,43 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   };
 
-  // Add upload buttons to cards (only for logged-in users)
+  // Add per-script upload buttons inside each reaction block (only for logged-in users)
   if (userId) {
     cards.forEach(function(card) {
       var num = card.getAttribute('data-video-num');
       var header = card.querySelector('.card-header');
       var doneBtn = card.querySelector('.done-btn');
 
-      // Create upload button (before done button)
-      var uploadBtn = document.createElement('button');
-      uploadBtn.className = 'upload-btn';
-      uploadBtn.innerHTML = '<span class="upload-icon">↑</span> Upload';
-      uploadBtn.onclick = function(e) {
-        e.stopPropagation();
-        handleUpload(num, card, uploadBtn);
-      };
+      // Add summary badge in header (e.g., "↑ 0/3")
+      var summaryBadge = document.createElement('span');
+      summaryBadge.className = 'upload-summary';
+      var scriptCount = card.querySelectorAll('.reaction-block').length;
+      summaryBadge.textContent = '↑ 0/' + scriptCount;
       if (doneBtn) {
-        header.insertBefore(uploadBtn, doneBtn);
+        header.insertBefore(summaryBadge, doneBtn);
       }
 
-      // Create upload status area in card body
-      var cardBody = card.querySelector('.card-body');
-      if (cardBody) {
+      // Add upload button + status area inside each reaction block
+      var blocks = card.querySelectorAll('.reaction-block');
+      blocks.forEach(function(block, idx) {
+        var scriptNum = idx + 1;
+        var compositeKey = num + '-' + scriptNum;
+
+        var uploadBtn = document.createElement('button');
+        uploadBtn.className = 'script-upload-btn';
+        uploadBtn.setAttribute('data-upload-key', compositeKey);
+        uploadBtn.innerHTML = '<span class="upload-icon">↑</span> Upload Reaction';
+        uploadBtn.onclick = function(e) {
+          e.stopPropagation();
+          handleUpload(compositeKey, uploadBtn);
+        };
+
         var statusEl = document.createElement('div');
         statusEl.className = 'upload-status';
-        cardBody.insertBefore(statusEl, cardBody.firstChild);
-      }
+
+        block.appendChild(uploadBtn);
+        block.appendChild(statusEl);
+      });
     });
 
     loadUploads();
